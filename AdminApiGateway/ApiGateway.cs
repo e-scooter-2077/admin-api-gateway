@@ -8,12 +8,12 @@ namespace AdminApiGateway
 {
     public static class ApiGateway
     {
-        [Function("GetScooters")]
+        [Function("scooters")]
         public static HttpResponseData GetScooters(
-            [HttpTrigger(AuthorizationLevel.Function, "get", "post")] HttpRequestData req,
+            [HttpTrigger(AuthorizationLevel.Anonymous, "get")] HttpRequestData req,
             FunctionContext executionContext)
         {
-            var logger = executionContext.GetLogger("GetScooters");
+            var logger = executionContext.GetLogger("get-scooters");
 
             var response = req.CreateResponse(HttpStatusCode.OK);
             response.Headers.Add("Content-Type", "text/plain; charset=utf-8");
