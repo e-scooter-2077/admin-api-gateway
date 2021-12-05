@@ -4,7 +4,7 @@ env:
   OUTPUT_DIR: publish
   RELEASE_PREFIX: Azure Function Template
   AZURE_FUNCTIONAPP_NAME: 'admin-api-gateway'
-  PROJECT_NAME: 'Admin Api Gateway'
+  PROJECT_NAME: 'AdminApiGateway'
 on:
   workflow_dispatch:
   push:
