@@ -26,12 +26,12 @@ namespace AdminApiGateway
             var credential = new DefaultAzureCredential();
             var digitalTwinsClient = new DigitalTwinsClient(new Uri(digitalTwinUrl), credential);
 
-            var scooters = new List<ScooterDto>();
-
+            logger.LogInformation("Querying twin graph");
             string query = "SELECT * FROM DIGITALTWINS DT WHERE IS_OF_MODEL(DT, 'dtmi:com:escooter:EScooter;1')";
             AsyncPageable<BasicDigitalTwin> result = digitalTwinsClient.QueryAsync<BasicDigitalTwin>(query);
             try
             {
+                var scooters = new List<ScooterDto>();
                 await foreach (BasicDigitalTwin twin in result)
                 {
                     Guid id = new Guid(twin.Id);
@@ -46,16 +46,16 @@ namespace AdminApiGateway
                     var scooter = new ScooterDto(id, latitude, longitude, battery, enabled, locked, standby);
                     scooters.Add(scooter);
                 }
+                logger.LogInformation("Retrieved scooters");
+                var response = req.CreateResponse(HttpStatusCode.OK);
+                await response.WriteAsJsonAsync(scooters);
+                return response;
             }
             catch (RequestFailedException ex)
             {
-                Console.WriteLine($"Error {ex.Status}, {ex.ErrorCode}, {ex.Message}");
+                logger.LogError($"Error {ex.Status}, {ex.ErrorCode}, {ex.Message}");
                 throw;
             }
-
-            var response = req.CreateResponse(HttpStatusCode.OK);
-            await response.WriteAsJsonAsync(scooters);
-            return response;
         }
     }
 }
