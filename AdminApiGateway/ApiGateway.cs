@@ -12,7 +12,6 @@ using Microsoft.Extensions.Logging;
 
 namespace AdminApiGateway
 {
-
     public record ScooterDto(Guid Id, double Latitude, double Longitude, double BatteryLevel, bool Enabled, bool Locked, bool Standby);
 
     public static class ApiGateway
