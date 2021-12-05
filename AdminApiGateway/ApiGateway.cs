@@ -12,6 +12,9 @@ using Microsoft.Extensions.Logging;
 
 namespace AdminApiGateway
 {
+
+    public record ScooterDto(Guid Id, double Latitude, double Longitude, double BatteryLevel, bool Enabled, bool Locked, bool Standby);
+
     public static class ApiGateway
     {
         [Function("scooters")]
@@ -24,7 +27,7 @@ namespace AdminApiGateway
             var credential = new DefaultAzureCredential();
             var digitalTwinsClient = new DigitalTwinsClient(new Uri(digitalTwinUrl), credential);
 
-            var scooters = new List<BasicDigitalTwin>();
+            var scooters = new List<ScooterDto>();
 
             string query = "SELECT * FROM DIGITALTWINS DT WHERE IS_OF_MODEL(DT, 'dtmi:com:escooter:EScooter;1')";
             AsyncPageable<BasicDigitalTwin> result = digitalTwinsClient.QueryAsync<BasicDigitalTwin>(query);
@@ -32,7 +35,17 @@ namespace AdminApiGateway
             {
                 await foreach (BasicDigitalTwin twin in result)
                 {
-                    scooters.Add(twin);
+                    Guid id = new Guid(twin.Id);
+
+                    var latitude = ((JsonElement)twin.Contents["Latitude"]).GetDouble();
+                    var longitude = ((JsonElement)twin.Contents["Longitude"]).GetDouble();
+                    var battery = ((JsonElement)twin.Contents["BatteryLevel"]).GetDouble();
+                    var enabled = ((JsonElement)twin.Contents["Enabled"]).GetBoolean();
+                    var locked = ((JsonElement)twin.Contents["Locked"]).GetBoolean();
+                    var standby = ((JsonElement)twin.Contents["Standby"]).GetBoolean();
+
+                    var scooter = new ScooterDto(id, latitude, longitude, battery, enabled, locked, standby);
+                    scooters.Add(scooter);
                 }
             }
             catch (RequestFailedException ex)
@@ -42,10 +55,7 @@ namespace AdminApiGateway
             }
 
             var response = req.CreateResponse(HttpStatusCode.OK);
-            response.Headers.Add("Content-Type", "application/json; charset=utf-8");
-
             await response.WriteAsJsonAsync(scooters);
-
             return response;
         }
     }

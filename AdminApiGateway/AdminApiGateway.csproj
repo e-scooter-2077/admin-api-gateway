@@ -8,6 +8,8 @@
 	  <RootFolder>../</RootFolder>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Azure.DigitalTwins.Core" Version="1.2.2" />
+    <PackageReference Include="Azure.Identity" Version="1.5.0" />
     <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Http" Version="3.0.12" />
     <PackageReference Include="Microsoft.Azure.Functions.Worker.Sdk" Version="1.2.0" OutputItemType="Analyzer" />
     <PackageReference Include="Microsoft.Azure.Functions.Worker" Version="1.5.2" />
