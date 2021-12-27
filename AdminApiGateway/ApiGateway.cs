@@ -75,7 +75,6 @@ namespace AdminApiGateway
             }
         }
 
-
         private static ScooterDto MapTwin(BasicDigitalTwin twin, bool available)
         {
             Guid id = new Guid(twin.Id);
