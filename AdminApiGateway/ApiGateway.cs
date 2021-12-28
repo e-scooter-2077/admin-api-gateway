@@ -47,6 +47,13 @@ namespace AdminApiGateway
                     scooters.Add(twin);
                 }
 
+                var response = req.CreateResponse(HttpStatusCode.OK);
+                if (scooters.Count == 0)
+                {
+                    await response.WriteAsJsonAsync("[]");
+                    return response;
+                }
+
                 logger.LogInformation("Retrieved scooters");
                 logger.LogInformation("Querying relationships");
 
@@ -64,7 +71,6 @@ namespace AdminApiGateway
                 logger.LogInformation(rentedScooters.Select(x => x.Id).ConcatStrings(", "));
                 var resultScooters = scooters.GroupJoin(rentedScooters, x => x.Id, y => y.Id, (s, r) => MapTwin(s, r.Any()));
 
-                var response = req.CreateResponse(HttpStatusCode.OK);
                 await response.WriteAsJsonAsync(resultScooters);
                 return response;
             }
