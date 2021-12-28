@@ -16,7 +16,7 @@ using Microsoft.Extensions.Logging;
 
 namespace AdminApiGateway
 {
-    public record ScooterDto(Guid Id, double Latitude, double Longitude, double BatteryLevel, bool Enabled, bool Available, bool Locked, bool Standby, bool Connected);
+    public record ScooterDto(Guid Id, double Latitude, double Longitude, double BatteryLevel, bool Enabled, bool Rented, bool Locked, bool Standby, bool Connected);
 
     public class RentedScooterResultDto
     {
@@ -62,7 +62,7 @@ namespace AdminApiGateway
                     rentedScooters.Add(rent.Target);
                 }
                 logger.LogInformation(rentedScooters.Select(x => x.Id).ConcatStrings(", "));
-                var resultScooters = scooters.GroupJoin(rentedScooters, x => x.Id, y => y.Id, (s, r) => MapTwin(s, !r.Any()));
+                var resultScooters = scooters.GroupJoin(rentedScooters, x => x.Id, y => y.Id, (s, r) => MapTwin(s, r.Any()));
 
                 var response = req.CreateResponse(HttpStatusCode.OK);
                 await response.WriteAsJsonAsync(resultScooters);
@@ -75,7 +75,7 @@ namespace AdminApiGateway
             }
         }
 
-        private static ScooterDto MapTwin(BasicDigitalTwin twin, bool available)
+        private static ScooterDto MapTwin(BasicDigitalTwin twin, bool rented)
         {
             Guid id = new Guid(twin.Id);
 
@@ -87,7 +87,7 @@ namespace AdminApiGateway
             var standby = ((JsonElement)twin.Contents["Standby"]).GetBoolean();
             var connected = ((JsonElement)twin.Contents["Connected"]).GetBoolean();
 
-            var scooter = new ScooterDto(id, latitude, longitude, battery, enabled, available, locked, standby, connected);
+            var scooter = new ScooterDto(id, latitude, longitude, battery, enabled, rented, locked, standby, connected);
             return scooter;
         }
     }
