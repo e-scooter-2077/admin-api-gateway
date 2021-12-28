@@ -50,7 +50,7 @@ namespace AdminApiGateway
                 var response = req.CreateResponse(HttpStatusCode.OK);
                 if (scooters.Count == 0)
                 {
-                    await response.WriteAsJsonAsync("[]");
+                    await response.WriteAsJsonAsync(scooters);
                     return response;
                 }
 
