@@ -38,7 +38,6 @@ jobs:
         uses: EasyDesk/action-dotnet-build@v1
         with:
           warnings-as-errors: true
-          path: ${{ env.PROJECT_NAME }}
       - name: Test
         uses: EasyDesk/action-dotnet-test@v1
       - name: Publish
