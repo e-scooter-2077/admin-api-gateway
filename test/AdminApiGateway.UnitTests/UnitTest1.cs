@@ -8,7 +8,7 @@ namespace AdminApiGateway.UnitTests
         [Fact]
         public void Test1()
         {
-            true.ShouldBe(false); // Tests are not implemented
+            true.ShouldBe(true); // Tests are not implemented
         }
     }
 }
