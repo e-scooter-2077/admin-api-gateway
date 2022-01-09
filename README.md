@@ -3,4 +3,4 @@
 [![GitHub issues](https://img.shields.io/github/issues-raw/e-scooter-2077/admin-api-gateway?style=plastic)](https://github.com/e-scooter-2077/admin-api-gateway/issues)
 [![GitHub pull requests](https://img.shields.io/github/issues-pr-raw/e-scooter-2077/admin-api-gateway?style=plastic)](https://github.com/e-scooter-2077/admin-api-gateway/pulls)
 [![GitHub](https://img.shields.io/github/license/e-scooter-2077/admin-api-gateway?style=plastic)](/LICENSE)
-[![GitHub release (latest SemVer including pre-releases)](https://img.shields.io/github/v/release/e-scooter-2077/admin-api-gateway?include_prereleases)](https://github.com/e-scooter-2077/admin-api-gateway/releases)
+[![GitHub release (latest SemVer including pre-releases)](https://img.shields.io/github/v/release/e-scooter-2077/admin-api-gateway?include_prereleases&style=plastic)](https://github.com/e-scooter-2077/admin-api-gateway/releases)
