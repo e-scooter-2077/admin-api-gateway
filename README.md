@@ -5,4 +5,4 @@
 [![GitHub](https://img.shields.io/github/license/e-scooter-2077/admin-api-gateway?style=plastic)](/LICENSE)
 [![GitHub release (latest SemVer including pre-releases)](https://img.shields.io/github/v/release/e-scooter-2077/admin-api-gateway?include_prereleases&style=plastic)](https://github.com/e-scooter-2077/admin-api-gateway/releases)
 
-An Http triggered Azure Function for querying the Digital Twin Graph.
+An HTTP triggered Azure Function for querying the Digital Twin Graph.
