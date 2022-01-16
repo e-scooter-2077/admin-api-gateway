@@ -26,19 +26,24 @@ namespace AdminApiGateway
 
     public static class ApiGateway
     {
+        private static DigitalTwinsClient InstantiateDtClient()
+        {
+            string digitalTwinUrl = "https://" + Environment.GetEnvironmentVariable("AzureDTHostname");
+            var credential = new DefaultAzureCredential();
+            return new DigitalTwinsClient(new Uri(digitalTwinUrl), credential);
+        }
+
+        private static DigitalTwinsClient _digitalTwinsClient = InstantiateDtClient();
+
         [Function("scooters")]
         public static async Task<HttpResponseData> GetScooters(
             [HttpTrigger(AuthorizationLevel.Anonymous, "get")] HttpRequestData req,
             FunctionContext executionContext)
         {
             var logger = executionContext.GetLogger("get-scooters");
-            string digitalTwinUrl = "https://" + Environment.GetEnvironmentVariable("AzureDTHostname");
-            var credential = new DefaultAzureCredential();
-            var digitalTwinsClient = new DigitalTwinsClient(new Uri(digitalTwinUrl), credential);
-
             logger.LogInformation("Querying twin graph");
             string query = "SELECT * FROM DIGITALTWINS DT WHERE IS_OF_MODEL(DT, 'dtmi:com:escooter:EScooter;1')";
-            AsyncPageable<BasicDigitalTwin> result = digitalTwinsClient.QueryAsync<BasicDigitalTwin>(query);
+            AsyncPageable<BasicDigitalTwin> result = _digitalTwinsClient.QueryAsync<BasicDigitalTwin>(query);
             try
             {
                 var scooters = new List<BasicDigitalTwin>();
@@ -62,7 +67,7 @@ namespace AdminApiGateway
                 string queryRents = $"SELECT target FROM DIGITALTWINS source JOIN target RELATED source.is_riding WHERE target.$dtId IN [{idString}]";
 
                 logger.LogInformation(queryRents);
-                var rentResult = digitalTwinsClient.QueryAsync<RentedScooterResultDto>(queryRents);
+                var rentResult = _digitalTwinsClient.QueryAsync<RentedScooterResultDto>(queryRents);
                 var rentedScooters = new List<BasicDigitalTwin>();
                 await foreach (RentedScooterResultDto rent in rentResult)
                 {
