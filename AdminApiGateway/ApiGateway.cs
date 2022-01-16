@@ -2,10 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Azure;
+using Azure.Core.Pipeline;
 using Azure.DigitalTwins.Core;
 using Azure.Identity;
 using EasyDesk.Tools.Collections;
@@ -30,10 +32,13 @@ namespace AdminApiGateway
         {
             string digitalTwinUrl = "https://" + Environment.GetEnvironmentVariable("AzureDTHostname");
             var credential = new DefaultAzureCredential();
-            return new DigitalTwinsClient(new Uri(digitalTwinUrl), credential);
+            return new DigitalTwinsClient(
+                new Uri(digitalTwinUrl),
+                credential,
+                new DigitalTwinsClientOptions { Transport = new HttpClientTransport(_httpClient) });
         }
 
-        private static DigitalTwinsClient _digitalTwinsClient = InstantiateDtClient();
+        private static HttpClient _httpClient = new HttpClient();
 
         [Function("scooters")]
         public static async Task<HttpResponseData> GetScooters(
@@ -41,9 +46,11 @@ namespace AdminApiGateway
             FunctionContext executionContext)
         {
             var logger = executionContext.GetLogger("get-scooters");
+            var digitalTwinsClient = InstantiateDtClient();
+
             logger.LogInformation("Querying twin graph");
             string query = "SELECT * FROM DIGITALTWINS DT WHERE IS_OF_MODEL(DT, 'dtmi:com:escooter:EScooter;1')";
-            AsyncPageable<BasicDigitalTwin> result = _digitalTwinsClient.QueryAsync<BasicDigitalTwin>(query);
+            AsyncPageable<BasicDigitalTwin> result = digitalTwinsClient.QueryAsync<BasicDigitalTwin>(query);
             try
             {
                 var scooters = new List<BasicDigitalTwin>();
@@ -67,7 +74,7 @@ namespace AdminApiGateway
                 string queryRents = $"SELECT target FROM DIGITALTWINS source JOIN target RELATED source.is_riding WHERE target.$dtId IN [{idString}]";
 
                 logger.LogInformation(queryRents);
-                var rentResult = _digitalTwinsClient.QueryAsync<RentedScooterResultDto>(queryRents);
+                var rentResult = digitalTwinsClient.QueryAsync<RentedScooterResultDto>(queryRents);
                 var rentedScooters = new List<BasicDigitalTwin>();
                 await foreach (RentedScooterResultDto rent in rentResult)
                 {
