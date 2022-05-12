@@ -13,7 +13,7 @@ jobs:
     uses: e-scooter-2077/azure-functions-ci/.github/workflows/azure-functions-ci.yml@master
     with:
       release-prefix: Admin Api Gateway
-      azure-functionapp-name: 'admin-api-gateway'
+      azure-functionapp-name: 'escooter-dt-gateway'
       project-name: 'AdminApiGateway'
     secrets:
       azure-credentials: ${{ secrets.AZURE_CREDENTIALS }}
