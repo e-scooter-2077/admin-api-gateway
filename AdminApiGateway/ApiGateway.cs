@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net;
 using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -12,8 +11,10 @@ using Azure.DigitalTwins.Core;
 using Azure.Identity;
 using EasyDesk.Tools.Collections;
 using EasyDesk.Tools.Options;
-using Microsoft.Azure.Functions.Worker;
-using Microsoft.Azure.Functions.Worker.Http;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Azure.WebJobs;
+using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Extensions.Logging;
 
 namespace AdminApiGateway
@@ -26,7 +27,7 @@ namespace AdminApiGateway
         public BasicDigitalTwin Target { get; set; }
     }
 
-    public static class ApiGateway
+    public class ApiGateway
     {
         private static DigitalTwinsClient InstantiateDtClient()
         {
@@ -38,17 +39,22 @@ namespace AdminApiGateway
                 new DigitalTwinsClientOptions { Transport = new HttpClientTransport(_httpClient) });
         }
 
-        private static HttpClient _httpClient = new HttpClient();
+        private static readonly HttpClient _httpClient = new HttpClient();
 
-        [Function("scooters")]
-        public static async Task<HttpResponseData> GetScooters(
-            [HttpTrigger(AuthorizationLevel.Anonymous, "get")] HttpRequestData req,
-            FunctionContext executionContext)
+        private readonly ILogger<ApiGateway> _logger;
+
+        public ApiGateway(ILogger<ApiGateway> log)
         {
-            var logger = executionContext.GetLogger("get-scooters");
+            _logger = log;
+        }
+
+        [FunctionName("scooters")]
+        public async Task<IActionResult> GetScooters(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "get")] HttpRequest req)
+        {
             var digitalTwinsClient = InstantiateDtClient();
 
-            logger.LogInformation("Querying twin graph");
+            _logger.LogInformation("Querying twin graph");
             string query = "SELECT * FROM DIGITALTWINS DT WHERE IS_OF_MODEL(DT, 'dtmi:com:escooter:EScooter;1')";
             AsyncPageable<BasicDigitalTwin> result = digitalTwinsClient.QueryAsync<BasicDigitalTwin>(query);
             try
@@ -59,36 +65,32 @@ namespace AdminApiGateway
                     scooters.Add(twin);
                 }
 
-                var response = req.CreateResponse(HttpStatusCode.OK);
                 if (scooters.Count == 0)
                 {
-                    await response.WriteAsJsonAsync(scooters);
-                    return response;
+                    return new OkObjectResult(scooters);
                 }
 
-                logger.LogInformation("Retrieved scooters");
-                logger.LogInformation("Querying relationships");
+                _logger.LogInformation("Retrieved scooters");
+                _logger.LogInformation("Querying relationships");
 
                 string idString = scooters.Select(x => $"'{x.Id}'").ConcatStrings(", ");
 
                 string queryRents = $"SELECT target FROM DIGITALTWINS source JOIN target RELATED source.is_riding WHERE target.$dtId IN [{idString}]";
 
-                logger.LogInformation(queryRents);
+                _logger.LogInformation(queryRents);
                 var rentResult = digitalTwinsClient.QueryAsync<RentedScooterResultDto>(queryRents);
                 var rentedScooters = new List<BasicDigitalTwin>();
                 await foreach (RentedScooterResultDto rent in rentResult)
                 {
                     rentedScooters.Add(rent.Target);
                 }
-                logger.LogInformation(rentedScooters.Select(x => x.Id).ConcatStrings(", "));
+                _logger.LogInformation(rentedScooters.Select(x => x.Id).ConcatStrings(", "));
                 var resultScooters = scooters.GroupJoin(rentedScooters, x => x.Id, y => y.Id, (s, r) => MapTwin(s, r.Any()));
-
-                await response.WriteAsJsonAsync(resultScooters);
-                return response;
+                return new OkObjectResult(resultScooters);
             }
             catch (RequestFailedException ex)
             {
-                logger.LogError($"Error {ex.Status}, {ex.ErrorCode}, {ex.Message}");
+                _logger.LogError($"Error {ex.Status}, {ex.ErrorCode}, {ex.Message}");
                 throw;
             }
         }
