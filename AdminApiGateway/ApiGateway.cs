@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
-using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Azure;
@@ -17,98 +16,127 @@ using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Extensions.Logging;
 
-namespace AdminApiGateway
-{
-    public record ScooterDto(Guid Id, double Latitude, double Longitude, double BatteryLevel, bool Enabled, bool Rented, bool Locked, bool Standby, bool Connected);
+namespace AdminApiGateway;
 
-    public class RentedScooterResultDto
+public record ScooterDto(
+    Guid Id,
+    double Latitude,
+    double Longitude,
+    double BatteryLevel,
+    bool Enabled,
+    bool Rented,
+    bool Locked,
+    bool Standby,
+    bool Connected);
+
+public record CustomerDto(
+    Guid Id,
+    string Username);
+
+public class RentedScooterResultDto
+{
+    [JsonPropertyName("target")]
+    public BasicDigitalTwin Target { get; set; }
+}
+
+public class ApiGateway
+{
+    private static DigitalTwinsClient InstantiateDtClient()
     {
-        [JsonPropertyName("target")]
-        public BasicDigitalTwin Target { get; set; }
+        string digitalTwinUrl = "https://" + Environment.GetEnvironmentVariable("AzureDTHostname");
+        var credential = new DefaultAzureCredential();
+        return new DigitalTwinsClient(
+            new Uri(digitalTwinUrl),
+            credential,
+            new DigitalTwinsClientOptions { Transport = new HttpClientTransport(_httpClient) });
     }
 
-    public class ApiGateway
+    private static readonly HttpClient _httpClient = new HttpClient();
+
+    private readonly ILogger<ApiGateway> _logger;
+
+    public ApiGateway(ILogger<ApiGateway> log)
     {
-        private static DigitalTwinsClient InstantiateDtClient()
+        _logger = log;
+    }
+
+    [FunctionName("customers")]
+    public async Task<IActionResult> GetCustomers(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get")] HttpRequest req)
+    {
+        try
         {
-            string digitalTwinUrl = "https://" + Environment.GetEnvironmentVariable("AzureDTHostname");
-            var credential = new DefaultAzureCredential();
-            return new DigitalTwinsClient(
-                new Uri(digitalTwinUrl),
-                credential,
-                new DigitalTwinsClientOptions { Transport = new HttpClientTransport(_httpClient) });
+            var digitalTwinsClient = InstantiateDtClient();
+            var query = "SELECT * FROM DIGITALTWINS DT WHERE IS_OF_MODEL(DT, 'dtmi:com:escooter:Customer;1')";
+            var customers = await RunQuery<BasicDigitalTwin, CustomerDto>(digitalTwinsClient, query, ToCustomerDto);
+            return new OkObjectResult(customers);
         }
-
-        private static readonly HttpClient _httpClient = new HttpClient();
-
-        private readonly ILogger<ApiGateway> _logger;
-
-        public ApiGateway(ILogger<ApiGateway> log)
+        catch (RequestFailedException ex)
         {
-            _logger = log;
+            _logger.LogError($"Error {ex.Status}, {ex.ErrorCode}, {ex.Message}");
+            throw;
         }
+    }
 
-        [FunctionName("scooters")]
-        public async Task<IActionResult> GetScooters(
-            [HttpTrigger(AuthorizationLevel.Anonymous, "get")] HttpRequest req)
+    [FunctionName("scooters")]
+    public async Task<IActionResult> GetScooters(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get")] HttpRequest req)
+    {
+        try
         {
             var digitalTwinsClient = InstantiateDtClient();
 
-            _logger.LogInformation("Querying twin graph");
-            string query = "SELECT * FROM DIGITALTWINS DT WHERE IS_OF_MODEL(DT, 'dtmi:com:escooter:EScooter;1')";
-            AsyncPageable<BasicDigitalTwin> result = digitalTwinsClient.QueryAsync<BasicDigitalTwin>(query);
-            try
+            var query = "SELECT * FROM DIGITALTWINS DT WHERE IS_OF_MODEL(DT, 'dtmi:com:escooter:EScooter;1')";
+            var scooters = await RunQuery<BasicDigitalTwin, BasicDigitalTwin>(digitalTwinsClient, query, x => x);
+
+            if (scooters.Count == 0)
             {
-                var scooters = new List<BasicDigitalTwin>();
-                await foreach (BasicDigitalTwin twin in result)
-                {
-                    scooters.Add(twin);
-                }
-
-                if (scooters.Count == 0)
-                {
-                    return new OkObjectResult(scooters);
-                }
-
-                _logger.LogInformation("Retrieved scooters");
-                _logger.LogInformation("Querying relationships");
-
-                string idString = scooters.Select(x => $"'{x.Id}'").ConcatStrings(", ");
-
-                string queryRents = $"SELECT target FROM DIGITALTWINS source JOIN target RELATED source.is_riding WHERE target.$dtId IN [{idString}]";
-
-                _logger.LogInformation(queryRents);
-                var rentResult = digitalTwinsClient.QueryAsync<RentedScooterResultDto>(queryRents);
-                var rentedScooters = new List<BasicDigitalTwin>();
-                await foreach (RentedScooterResultDto rent in rentResult)
-                {
-                    rentedScooters.Add(rent.Target);
-                }
-                _logger.LogInformation(rentedScooters.Select(x => x.Id).ConcatStrings(", "));
-                var resultScooters = scooters.GroupJoin(rentedScooters, x => x.Id, y => y.Id, (s, r) => MapTwin(s, r.Any()));
-                return new OkObjectResult(resultScooters);
+                return new OkObjectResult(scooters);
             }
-            catch (RequestFailedException ex)
-            {
-                _logger.LogError($"Error {ex.Status}, {ex.ErrorCode}, {ex.Message}");
-                throw;
-            }
+
+            var idString = scooters.Select(x => $"'{x.Id}'").ConcatStrings(", ");
+            var queryRents = $"SELECT target FROM DIGITALTWINS source JOIN target RELATED source.is_riding WHERE target.$dtId IN [{idString}]";
+
+            var rentedScooters = await RunQuery<RentedScooterResultDto, BasicDigitalTwin>(digitalTwinsClient, queryRents, x => x.Target);
+            var resultScooters = scooters.GroupJoin(rentedScooters, x => x.Id, y => y.Id, (s, r) => ToScooterDto(s, r.Any()));
+            return new OkObjectResult(resultScooters);
         }
-
-        private static ScooterDto MapTwin(BasicDigitalTwin twin, bool rented)
+        catch (RequestFailedException ex)
         {
-            Guid id = new Guid(twin.Id);
-
-            var latitude = ((JsonElement)twin.Contents["Latitude"]).GetDouble();
-            var longitude = ((JsonElement)twin.Contents["Longitude"]).GetDouble();
-            var battery = ((JsonElement)twin.Contents["BatteryLevel"]).GetDouble();
-            var enabled = ((JsonElement)twin.Contents["Enabled"]).GetBoolean();
-            var locked = ((JsonElement)twin.Contents["Locked"]).GetBoolean();
-            var standby = ((JsonElement)twin.Contents["Standby"]).GetBoolean();
-            var connected = ((JsonElement)twin.Contents["Connected"]).GetBoolean();
-
-            var scooter = new ScooterDto(id, latitude, longitude, battery, enabled, rented, locked, standby, connected);
-            return scooter;
+            _logger.LogError($"Error {ex.Status}, {ex.ErrorCode}, {ex.Message}");
+            throw;
         }
+    }
+
+    private static async Task<List<T>> RunQuery<R, T>(DigitalTwinsClient client, string query, Func<R, T> mapper)
+    {
+        var result = client.QueryAsync<R>(query);
+        var items = new List<T>();
+        await foreach (var twin in result)
+        {
+            items.Add(mapper(twin));
+        }
+        return items;
+    }
+
+    private static ScooterDto ToScooterDto(BasicDigitalTwin twin, bool rented)
+    {
+        return new ScooterDto(
+            Id: Guid.Parse(twin.Id),
+            Latitude: twin.ReadProperty("Latitude").GetDouble(),
+            Longitude: twin.ReadProperty("Longitude").GetDouble(),
+            BatteryLevel: twin.ReadProperty("BatteryLevel").GetDouble(),
+            Enabled: twin.ReadProperty("Enabled").GetBoolean(),
+            Rented: rented,
+            Locked: twin.ReadProperty("Locked").GetBoolean(),
+            Standby: twin.ReadProperty("Standby").GetBoolean(),
+            Connected: twin.ReadProperty("Connected").GetBoolean());
+    }
+
+    private static CustomerDto ToCustomerDto(BasicDigitalTwin twin)
+    {
+        return new CustomerDto(
+            Id: Guid.Parse(twin.Id),
+            Username: twin.ReadProperty("Username").GetString());
     }
 }
