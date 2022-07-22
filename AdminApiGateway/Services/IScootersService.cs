@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace AdminApiGateway;
+namespace AdminApiGateway.Services;
 
 public interface IScootersService
 {

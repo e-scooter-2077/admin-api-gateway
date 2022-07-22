@@ -50,8 +50,11 @@ public class ApiGateway
         }
         catch (RequestFailedException ex)
         {
-            _logger.LogError($"Error {ex.Status}, {ex.ErrorCode}, {ex.Message}");
-            return new StatusCodeResult((int)HttpStatusCode.InternalServerError);
+            _logger.LogError("Error [{status} - {errorCode}]: {message}", ex.Status, ex.ErrorCode, ex.Message);
+            return new ObjectResult(new { Error = ex.Message })
+            {
+                StatusCode = (int)HttpStatusCode.InternalServerError
+            };
         }
     }
 }

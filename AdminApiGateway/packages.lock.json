@@ -33,6 +33,16 @@
         "resolved": "6.1.0",
         "contentHash": "BXeJ9P1xYV40CncM5vP7HKpbyAwJw7gCdbXttxoQCbzFPwHXQmwwJa+PgMKw9D9pxRyp4Yf15lgz3RqazRzTxA=="
       },
+      "Microsoft.Azure.Functions.Extensions": {
+        "type": "Direct",
+        "requested": "[1.1.0, )",
+        "resolved": "1.1.0",
+        "contentHash": "zYKtQQoS1fdzufxFApuMFiFtoi9QAGH6McXxntpylwLKgKjmCMWdgUd1dcekzTKNR9DPSDPRLiulvukqXnpWrQ==",
+        "dependencies": {
+          "Microsoft.Azure.WebJobs": "3.0.18",
+          "Microsoft.Extensions.DependencyInjection": "2.1.0"
+        }
+      },
       "Microsoft.Azure.Functions.Worker": {
         "type": "Direct",
         "requested": "[1.6.0, )",
